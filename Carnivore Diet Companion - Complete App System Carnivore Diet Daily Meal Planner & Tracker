@@ -1,0 +1,303 @@
+# carnivore_diet_planner.py
+import pandas as pd
+import numpy as np
+from datetime import datetime, timedelta
+from enum import Enum
+
+class MealType(Enum):
+    BEEF = "beef"
+    LAMB = "lamb"
+    PORK = "pork"
+    POULTRY = "poultry"
+    FISH = "fish"
+    ORGAN_MEATS = "organ_meats"
+    EGGS = "eggs"
+    DAIRY = "dairy"
+
+class CarnivoreDietPlanner:
+    def __init__(self):
+        self.food_database = self.initialize_food_database()
+        self.user_profile = {}
+        
+    def initialize_food_database(self):
+        """Initialize carnivore diet food database"""
+        foods = [
+            {
+                'id': 1, 'name': 'Ribeye Steak', 'type': MealType.BEEF, 
+                'calories': 291, 'protein': 25, 'fat': 21, 'carbs': 0,
+                'nutrients': ['iron', 'zinc', 'b12', 'creatine'],
+                'carnivore_rating': 10
+            },
+            {
+                'id': 2, 'name': 'Ground Beef (80/20)', 'type': MealType.BEEF, 
+                'calories': 254, 'protein': 17, 'fat': 20, 'carbs': 0,
+                'nutrients': ['iron', 'b12', 'selenium'],
+                'carnivore_rating': 9
+            },
+            {
+                'id': 3, 'name': 'Salmon', 'type': MealType.FISH, 
+                'calories': 206, 'protein': 22, 'fat': 13, 'carbs': 0,
+                'nutrients': ['omega3', 'vitamin_d', 'b12'],
+                'carnivore_rating': 9
+            },
+            {
+                'id': 4, 'name': 'Bacon', 'type': MealType.PORK, 
+                'calories': 541, 'protein': 37, 'fat': 42, 'carbs': 1,
+                'nutrients': ['b1', 'b12', 'zinc'],
+                'carnivore_rating': 8
+            },
+            {
+                'id': 5, 'name': 'Chicken Thighs', 'type': MealType.POULTRY, 
+                'calories': 209, 'protein': 26, 'fat': 11, 'carbs': 0,
+                'nutrients': ['b6', 'niacin', 'selenium'],
+                'carnivore_rating': 7
+            },
+            {
+                'id': 6, 'name': 'Liver (Beef)', 'type': MealType.ORGAN_MEATS, 
+                'calories': 135, 'protein': 20, 'fat': 4, 'carbs': 4,
+                'nutrients': ['vitamin_a', 'copper', 'b12', 'folate'],
+                'carnivore_rating': 10
+            },
+            {
+                'id': 7, 'name': 'Eggs', 'type': MealType.EGGS, 
+                'calories': 155, 'protein': 13, 'fat': 11, 'carbs': 1,
+                'nutrients': ['choline', 'b2', 'selenium'],
+                'carnivore_rating': 9
+            },
+            {
+                'id': 8, 'name': 'Butter', 'type': MealType.DAIRY, 
+                'calories': 717, 'protein': 1, 'fat': 81, 'carbs': 0,
+                'nutrients': ['vitamin_a', 'vitamin_k2'],
+                'carnivore_rating': 8
+            },
+            {
+                'id': 9, 'name': 'Lamb Chops', 'type': MealType.LAMB, 
+                'calories': 235, 'protein': 25, 'fat': 15, 'carbs': 0,
+                'nutrients': ['iron', 'zinc', 'b12'],
+                'carnivore_rating': 9
+            },
+            {
+                'id': 10, 'name': 'Sardines', 'type': MealType.FISH, 
+                'calories': 208, 'protein': 25, 'fat': 11, 'carbs': 0,
+                'nutrients': ['omega3', 'calcium', 'vitamin_d'],
+                'carnivore_rating': 9
+            }
+        ]
+        return pd.DataFrame(foods)
+    
+    def set_user_profile(self, weight_kg, height_cm, age, activity_level, goals, dietary_restrictions=None):
+        """Set user profile for personalized recommendations"""
+        self.user_profile = {
+            'weight_kg': weight_kg,
+            'height_cm': height_cm,
+            'age': age,
+            'activity_level': activity_level,  # sedentary, light, moderate, active, very_active
+            'goals': goals,  # weight_loss, maintenance, muscle_gain
+            'dietary_restrictions': dietary_restrictions or [],
+            'bmi': self.calculate_bmi(weight_kg, height_cm),
+            'maintenance_calories': self.calculate_maintenance_calories(weight_kg, height_cm, age, activity_level)
+        }
+    
+    def calculate_bmi(self, weight_kg, height_cm):
+        """Calculate BMI"""
+        height_m = height_cm / 100
+        return weight_kg / (height_m ** 2)
+    
+    def calculate_maintenance_calories(self, weight_kg, height_cm, age, activity_level):
+        """Calculate daily maintenance calories"""
+        # Mifflin-St Jeor Equation
+        bmr = 10 * weight_kg + 6.25 * height_cm - 5 * age + 5
+        
+        activity_multipliers = {
+            'sedentary': 1.2,
+            'light': 1.375,
+            'moderate': 1.55,
+            'active': 1.725,
+            'very_active': 1.9
+        }
+        
+        maintenance = bmr * activity_multipliers.get(activity_level, 1.2)
+        
+        # Adjust for carnivore diet (often higher protein/fat ratio)
+        return maintenance * 1.1  # 10% increase for thermic effect
+    
+    def generate_daily_meal_plan(self, day_type='normal'):
+        """Generate personalized daily meal plan"""
+        if not self.user_profile:
+            raise ValueError("Please set user profile first")
+        
+        goal_adjustments = {
+            'weight_loss': 0.8,
+            'maintenance': 1.0,
+            'muscle_gain': 1.15
+        }
+        
+        target_calories = self.user_profile['maintenance_calories'] * goal_adjustments.get(self.user_profile['goals'], 1.0)
+        
+        # Carnivore diet macronutrient ratios (high protein/fat, zero carb)
+        protein_ratio = 0.3  # 30% protein
+        fat_ratio = 0.7      # 70% fat
+        
+        target_protein = (target_calories * protein_ratio) / 4  # grams
+        target_fat = (target_calories * fat_ratio) / 9          # grams
+        
+        # Filter foods based on dietary restrictions
+        available_foods = self.food_database.copy()
+        if self.user_profile['dietary_restrictions']:
+            available_foods = available_foods[
+                ~available_foods['type'].isin(self.user_profile['dietary_restrictions'])
+            ]
+        
+        meal_plan = {
+            'target_calories': target_calories,
+            'target_protein': target_protein,
+            'target_fat': target_fat,
+            'meals': [],
+            'total_calories': 0,
+            'total_protein': 0,
+            'total_fat': 0
+        }
+        
+        # Generate 2-3 meals per day
+        meal_templates = [
+            {'name': 'Breakfast', 'calorie_target': target_calories * 0.3},
+            {'name': 'Lunch', 'calorie_target': target_calories * 0.4},
+            {'name': 'Dinner', 'calorie_target': target_calories * 0.3}
+        ]
+        
+        for meal in meal_templates:
+            meal_foods = self.select_meal_foods(available_foods, meal['calorie_target'])
+            meal_plan['meals'].append({
+                'name': meal['name'],
+                'foods': meal_foods,
+                'calories': sum(food['calories'] * food['servings'] for food in meal_foods),
+                'protein': sum(food['protein'] * food['servings'] for food in meal_foods),
+                'fat': sum(food['fat'] * food['servings'] for food in meal_foods)
+            })
+            
+            meal_plan['total_calories'] += meal_plan['meals'][-1]['calories']
+            meal_plan['total_protein'] += meal_plan['meals'][-1]['protein']
+            meal_plan['total_fat'] += meal_plan['meals'][-1]['fat']
+        
+        return meal_plan
+    
+    def select_meal_foods(self, available_foods, calorie_target):
+        """Select appropriate foods for a meal"""
+        selected_foods = []
+        remaining_calories = calorie_target
+        
+        # Prioritize high-quality carnivore foods
+        priority_foods = available_foods.sort_values('carnivore_rating', ascending=False)
+        
+        for _, food in priority_foods.iterrows():
+            if remaining_calories <= 0:
+                break
+                
+            # Calculate how many servings to add
+            servings = max(0.5, min(2.0, remaining_calories / food['calories']))
+            food_calories = food['calories'] * servings
+            
+            if food_calories <= remaining_calories:
+                selected_foods.append({
+                    'name': food['name'],
+                    'type': food['type'].value,
+                    'servings': round(servings, 1),
+                    'calories': food['calories'],
+                    'protein': food['protein'],
+                    'fat': food['fat'],
+                    'nutrients': food['nutrients']
+                })
+                remaining_calories -= food_calories
+        
+        return selected_foods
+    
+    def get_carnivore_tips(self, day_of_week):
+        """Get daily carnivore diet tips"""
+        tips_by_day = {
+            'monday': [
+                "Start your week with fatty meats for sustained energy",
+                "Consider adding organ meats for nutrient density",
+                "Drink plenty of water with electrolytes"
+            ],
+            'tuesday': [
+                "Focus on protein-rich foods for muscle maintenance",
+                "Try different cooking methods: grilling, roasting, pan-searing",
+                "Listen to your hunger cues - eat when hungry"
+            ],
+            'wednesday': [
+                "Incorporate fish for omega-3 fatty acids",
+                "Don't fear salt - it's essential on carnivore",
+                "Consider bone broth for gut health"
+            ],
+            'thursday': [
+                "Experiment with different animal fats",
+                "Track how you feel after different meat types",
+                "Stay consistent with your eating window"
+            ],
+            'friday': [
+                "Plan your weekend meals in advance",
+                "Try a meat-heavy breakfast for all-day energy",
+                "Rotate your protein sources for variety"
+            ],
+            'saturday': [
+                "Perfect day for trying new carnivore recipes",
+                "Focus on social meals with carnivore options",
+                "Enjoy the mental clarity benefits"
+            ],
+            'sunday': [
+                "Meal prep for the upcoming week",
+                "Reflect on your weekly progress",
+                "Rest and recover - your body needs it"
+            ]
+        }
+        
+        return tips_by_day.get(day_of_day.lower(), [
+            "Stick to animal products only",
+            "Prioritize fatty cuts of meat",
+            "Stay hydrated with electrolyte water"
+        ])
+
+# Example usage
+if __name__ == "__main__":
+    planner = CarnivoreDietPlanner()
+    
+    # Set user profile
+    planner.set_user_profile(
+        weight_kg=80,
+        height_cm=180,
+        age=35,
+        activity_level='moderate',
+        goals='weight_loss',
+        dietary_restrictions=[MealType.DAIRY]  # Remove dairy if sensitive
+    )
+    
+    # Generate meal plan
+    meal_plan = planner.generate_daily_meal_plan()
+    
+    print("🐄 CARNIVORE DIET MEAL PLAN")
+    print("=" * 50)
+    print(f"Target Calories: {meal_plan['target_calories']:.0f}")
+    print(f"Target Protein: {meal_plan['target_protein']:.1f}g")
+    print(f"Target Fat: {meal_plan['target_fat']:.1f}g")
+    print()
+    
+    for meal in meal_plan['meals']:
+        print(f"🍽️  {meal['name']}:")
+        for food in meal['foods']:
+            print(f"   • {food['servings']} serving(s) {food['name']} "
+                  f"({food['calories'] * food['servings']:.0f} cal, "
+                  f"{food['protein'] * food['servings']:.1f}g protein, "
+                  f"{food['fat'] * food['servings']:.1f}g fat)")
+        print(f"   Total: {meal['calories']:.0f} calories")
+        print()
+    
+    print(f"📊 DAY TOTALS:")
+    print(f"Calories: {meal_plan['total_calories']:.0f}/{meal_plan['target_calories']:.0f}")
+    print(f"Protein: {meal_plan['total_protein']:.1f}g/{meal_plan['target_protein']:.1f}g")
+    print(f"Fat: {meal_plan['total_fat']:.1f}g/{meal_plan['target_fat']:.1f}g")
+    
+    # Get daily tips
+    tips = planner.get_carnivore_tips('monday')
+    print(f"\n💡 CARNIVORE TIPS:")
+    for tip in tips:
+        print(f"   • {tip}")
